@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор SQL-запросов</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Генератор SQL-запросов</h1>
+        <form id="sqlForm">
+            <div class="mb-3">
+                <label for="schema_src" class="form-label">Исходная схема (schema_src):</label>
+                <input type="text" class="form-control" id="schema_src" required>
+            </div>
+            <div class="mb-3">
+                <label for="object_src" class="form-label">Исходный объект (object_src):</label>
+                <input type="text" class="form-control" id="object_src" required>
+            </div>
+            <div class="mb-3">
+                <label for="schema" class="form-label">Целевая схема (schema):</label>
+                <input type="text" class="form-control" id="schema" required>
+            </div>
+            <div class="mb-3">
+                <label for="object" class="form-label">Целевой объект (object):</label>
+                <input type="text" class="form-control" id="object" required>
+            </div>
+            <div class="mb-3">
+                <label for="git_script_url" class="form-label">Ссылка на скрипт из Git:</label>
+                <input type="url" class="form-control" id="git_script_url">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Атрибуты:</label>
+                <div id="attributesContainer">
+                    <input type="text" class="form-control mb-2" name="attributes" placeholder="Введите атрибут">
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addAttributeField()">Добавить атрибут</button>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Ключи:</label>
+                <div id="keysContainer">
+                    <input type="text" class="form-control mb-2" name="keys" placeholder="Введите ключ">
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addKeyField()">Добавить ключ</button>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Сгенерировать SQL</button>
+        </form>
+        <div class="mt-4">
+            <h2>Результат:</h2>
+            <pre id="result" class="bg-light p-3 border rounded"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Функция для добавления поля атрибута
+        function addAttributeField() {
+            const container = document.getElementById("attributesContainer");
+            const input = document.createElement("input");
+            input.type = "text";
+            input.className = "form-control mb-2";
+            input.name = "attributes";
+            input.placeholder = "Введите атрибут";
+            container.appendChild(input);
+        }
+
+        // Функция для добавления поля ключа
+        function addKeyField() {
+            const container = document.getElementById("keysContainer");
+            const input = document.createElement("input");
+            input.type = "text";
+            input.className = "form-control mb-2";
+            input.name = "keys";
+            input.placeholder = "Введите ключ";
+            container.appendChild(input);
+        }
+
+        // Обработка отправки формы
+        document.getElementById("sqlForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const schema_src = document.getElementById("schema_src").value;
+            const object_src = document.getElementById("object_src").value;
+            const schema = document.getElementById("schema").value;
+            const object = document.getElementById("object").value;
+            const git_script_url = document.getElementById("git_script_url").value;
+
+            // Собираем атрибуты и ключи
+            const attributes = Array.from(document.querySelectorAll('input[name="attributes"]')).map(input => input.value);
+            const keys = Array.from(document.querySelectorAll('input[name="keys"]')).map(input => input.value);
+
+            const response = await fetch("/generate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ schema_src, object_src, schema, object, keys, attributes, git_script_url }),
+            });
+
+            const data = await response.json();
+            const resultElement = document.getElementById("result");
+
+            if (data.success) {
+                resultElement.textContent = data.sql_query;
+            } else {
+                resultElement.textContent = "Ошибка: " + data.error;
+            }
+        });
+    </script>
+</body>
+</html>
