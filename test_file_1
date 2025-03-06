@@ -1,0 +1,4 @@
+with mmb as 
+(select * from table_1 where deleted_flag = 'N')
+, test as 
+(select * from table_2)
