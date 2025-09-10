@@ -1,4 +1,57 @@
-with mmb as 
-(select * from table_1 where deleted_flag = 'N')
-, test as 
-(select * from table_2)
+pipeline {
+    agent any  // Использует любой доступный агент Jenkins (настрой, если нужен специфичный)
+
+    environment {
+        ALLURE_ENDPOINT = 'https://your-instance.allure-testops.io'  // Замени на реальный URL Allure TestOps
+        ALLURE_PROJECT_ID = 'your_project_id'  // Замени на ID проекта BIALM_FT из TestOps
+        ALLURE_TOKEN = credentials('allure-token')  // Ссылается на secret с ID allure-token
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm  // Клонирует репозиторий из Bitbucket
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'pip install -r requirements.txt'  // Устанавливает pytest, allure-pytest и др.
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'pytest --alluredir=allure-results'  // Запускает тесты, результаты в allure-results
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'allure-results/**', allowEmptyArchive: true  // Сохраняет результаты
+                }
+            }
+        }
+
+        stage('Generate Allure Report') {
+            steps {
+                allure includeProperties: false, jdk: '', results: [[path: 'allure-results']]  // Генерирует отчет в Jenkins
+            }
+        }
+
+        stage('Upload to Allure TestOps') {
+            steps {
+                sh '''
+                wget https://github.com/allure-framework/allurectl/releases/download/2.15.0/allurectl_linux_amd64 -O allurectl
+                chmod +x allurectl
+                ./allurectl auth login --endpoint=$ALLURE_ENDPOINT --token=$ALLURE_TOKEN
+                ./allurectl upload --project-id $ALLURE_PROJECT_ID allure-results
+                '''  // Отправляет результаты в Allure TestOps
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()  // Очищает workspace после билда
+        }
+    }
+}
